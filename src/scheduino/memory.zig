@@ -1,6 +1,7 @@
+const std = @import("std");
 const process = @import("process.zig");
-const RAM_START = 0x800100;
-const RAM_SIZE = 2000; // Less than 2048
+const RAM_START = 0x800100 + 0x00100; // Account for static data
+const RAM_SIZE = 2000 - 0x00100; // Less than 2048
 
 pub const StackSize = enum(u8) {
     XSmall,
@@ -9,7 +10,7 @@ pub const StackSize = enum(u8) {
     Large,
     XLarge,
 
-    pub fn to_usize(this: *@This()) usize {
+    pub fn to_usize(this: *const @This()) usize {
         _ = this;
         return 128;
     }
@@ -27,7 +28,7 @@ pub const BufferSize = enum(u8) {
     Large,
     XLarge,
 
-    pub fn to_usize(this: *@This()) usize {
+    pub fn to_usize(this: *const @This()) usize {
         _ = this;
         return 128;
     }
@@ -35,17 +36,15 @@ pub const BufferSize = enum(u8) {
 
 pub const BufferDef = struct {
     ty: type,
-    size: usize,
+    size: BufferSize,
 };
 
-pub fn Buffer(T: type) type {
-    _ = T;
-    return struct {
-        start: usize,
-        size: BufferSize,
-        lock: Lock,
-    };
-}
+const Buffer = struct {
+    start: usize,
+    size: usize,
+    used: usize,
+    lock: Lock,
+};
 
 pub const Lock = struct {
     locked: bool,
@@ -67,17 +66,43 @@ pub const Lock = struct {
     }
 };
 
-var State = {
-    comptime var alloc = allocate({}, {});
-    alloc;
+fn test_func() void {
+    var i: u8 = 0;
+    i += 1;
+}
+
+pub var MemState = blk: {
+    const ProcDef = process.ProcDef;
+    const procs = [_]process.ProcDef{ProcDef{
+        .func = test_func,
+        .stack_size = .Small,
+    }};
+    const bufs = [_]BufferDef{BufferDef{
+        .ty = u8,
+        .size = .Small,
+    }};
+    comptime var alloc = allocate(
+        procs[0..],
+        bufs[0..],
+    );
+    break :blk alloc;
 };
 
+pub fn resetBuffers() void {
+    inline for (MemState.buffers) |*b| {
+        var ptr: usize = b.start;
+        var end: usize = b.start + b.size;
+        while (ptr < end) : (ptr += 1) {
+            @intToPtr(*u8, ptr).* = 0;
+        }
+    }
+}
 
-fn allocate(comptime proc: []process.ProcDef, comptime buf: []BufferDef) struct { processes: [_]process.Process, buffers: [_]Buffer } {
+fn allocate(comptime proc: []const process.ProcDef, comptime buf: []const BufferDef) struct { processes: [proc.len]process.Process, buffers: [buf.len]Buffer } {
     comptime var used: usize = 0;
 
-    comptime var processes = []process.Process{undefined} ** proc.len;
-    comptime var buffers = []Buffers{undefined} ** buf.len;
+    comptime var processes = [_]process.Process{undefined} ** proc.len;
+    comptime var buffers = [_]Buffer{undefined} ** buf.len;
 
     comptime var i: usize = 0;
 
@@ -87,22 +112,23 @@ fn allocate(comptime proc: []process.ProcDef, comptime buf: []BufferDef) struct 
             @compileLog("Cannot allocate memory to process stack {}", .{i});
             @compileError("Exiting.");
         }
-        processes[i] = process.Process{ .pid = @intCast(u8, i), .state = .New, .stack_layout = StackLayout{} };
+        processes[i] = process.Process{ .pid = @intCast(u8, i), .state = .New, .stack_layout = StackLayout{ .start = used, .size = proc[i].stack_size } };
 
         used += size;
     }
 
     i = 0;
-    while (i < proc.buf) : (i += 1) {
-        var size = buf[i].stack_size.to_usize();
+    while (i < buf.len) : (i += 1) {
+        var size = buf[i].size.to_usize();
         if (used + size > RAM_SIZE) {
             @compileLog("Cannot allocate memory to buffer {}", .{i});
             @compileError("Exiting.");
         }
         buffers[i] = Buffer{
             .start = used,
-            .size = buf[i].size,
-            .lock = Lock {
+            .size = size,
+            .used = @as(usize, 0),
+            .lock = Lock{
                 .locked = false,
                 .pid = null,
             },
@@ -111,8 +137,8 @@ fn allocate(comptime proc: []process.ProcDef, comptime buf: []BufferDef) struct 
         used += size;
     }
 
-    return struct {
-        processes = processes,
-        buffers = buffers,
+    return .{
+        .processes = processes,
+        .buffers = buffers,
     };
 }

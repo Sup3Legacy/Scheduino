@@ -21,7 +21,8 @@ pub fn initSOC() void {
 }
 
 pub fn bootstrap() noreturn {
-    _ = @import("scheduino/memory.zig").State;
+    _ = @import("scheduino/memory.zig").MemState;
+    @import("scheduino/memory.zig").resetBuffers();
     // Init the SoC
     initSOC();
     utilities.delay(100_000);
