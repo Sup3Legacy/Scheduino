@@ -24,34 +24,51 @@ pub const ProcState = enum(u8) {
     Empty,
 };
 
-var k = false;
+pub export var k = false;
 
 pub fn mainProcess() void {
     scheduler.hasJumped = true;
 
-    //asm volatile ("cli");
+    asm volatile ("sei");
 
     Libz.GpIO.DIGITAL_MODE(3, .OUTPUT) catch {};
-    Libz.GpIO.DIGITAL_WRITE(3, if (k) .HIGH else .LOW) catch {};
-
-    k = if (k) false else true;
 
     var counter: u8 = 0;
 
     for (scheduler.MemState.processes) |*proc| {
         if (counter != 0) {
-            var address = @intToPtr(*volatile usize, proc.stack_pointer);
-            address.* = @ptrToInt(proc.func);
-            proc.stack_pointer -= 2 + 7;
+            var address_low = @intToPtr(*volatile u8, proc.stack_pointer - 1);
+            var address_high = @intToPtr(*volatile u8, proc.stack_pointer - 2);
+            address_low.* = @intCast(u8, @ptrToInt(proc.func) & 0xff);
+            address_high.* = @intCast(u8, @ptrToInt(proc.func) >> 8);
+
+            const SREG = Libz.MmIO.MMIO(0x5F, u8, u8);
+            var oldSREG: u8 = SREG.read();
+            var address_sreg = @intToPtr(*volatile u8, proc.stack_pointer - (2 + 33));
+            address_sreg.* = oldSREG;
+
+            proc.stack_pointer -= 3 + 33;
         }
         counter += 1;
     }
 
-    //asm volatile ("sei");
+    while (true) {
+        Libz.Utilities.delay(50_000);
+        Libz.GpIO.DIGITAL_WRITE(3, if (k) .LOW else .HIGH) catch {};
 
-    //asm volatile ("cli");
+        k = if (k) false else true;
+    }
+}
+
+pub fn secondProcess() void {
+    var st: bool = true;
+    Libz.GpIO.DIGITAL_MODE(6, .OUTPUT) catch {};
+    Libz.GpIO.DIGITAL_WRITE(6, .HIGH) catch {};
 
     while (true) {
-        asm volatile ("nop");
+        Libz.Utilities.delay(75_000);
+        Libz.GpIO.DIGITAL_WRITE(6, if (st) .LOW else .HIGH) catch {};
+
+        st = if (st) false else true;
     }
 }

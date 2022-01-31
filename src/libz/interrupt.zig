@@ -513,12 +513,47 @@ export fn _tim1_compa() callconv(.Naked) void {
     asm volatile ("reti");
 }
 // 13 0x0018 TIMER1 COMPB Timer/Coutner1 Compare Match B
-export fn _tim1_compb() callconv(.Interrupt) void {
+export fn _tim1_compb() callconv(.Naked) noreturn {
     //asm volatile ("cli" ::: "memory");
     //push();
     //asm volatile ("nop" ::: "memory");
     //const SREG = Libz.MmIO.MMIO(0x5F, u8, u8);
     //var oldSREG: u8 = SREG.read();
+
+    asm volatile (
+        \\ push r0
+        \\ push r1
+        \\ push r2
+        \\ push r3
+        \\ push r4
+        \\ push r5
+        \\ push r6
+        \\ push r7
+        \\ push r8
+        \\ push r9
+        \\ push r10
+        \\ push r11
+        \\ push r12
+        \\ push r13
+        \\ push r14
+        \\ push r15
+        \\ push r16
+        \\ push r17
+        \\ push r18
+        \\ push r19
+        \\ push r20
+        \\ push r21
+        \\ push r22
+        \\ push r23
+        \\ push r24
+        \\ push r25
+        \\ push r26
+        \\ push r27
+        \\ push r28
+        \\ push r29
+        \\ push r30
+        \\ push r31
+    );
 
     sei();
 
@@ -530,28 +565,48 @@ export fn _tim1_compb() callconv(.Interrupt) void {
     //Libz.Serial.write_usize(@intCast(u8, v));
     //Libz.Serial.write("\n\r");
 
-    var sp_low_old: u8 = asm volatile (
-        \\ in r1, 0x7D
-        : [ret] "={r1}" (-> u8),
-        :
-        : "r1"
+    asm volatile (
+        \\ in r0, 0x7F
+        \\ push r0
     );
 
-    var sp_high_old: u8 = asm volatile (
-        \\ in r2, 0x7E
-        : [ret] "={r2}" (-> u8),
-        :
-        : "r2"
-    );
+    //var sp_low_old: u8 = asm volatile (
+    //    \\ in r1, 0x7D
+    //    : [ret] "={r1}" (-> u8),
+    //    :
+    //    : "r1"
+    //);
+    //var sp_high_old: u8 = asm volatile (
+    //    \\ in r2, 0x7E
+    //    : [ret] "={r2}" (-> u8),
+    //    :
+    //    : "r2"
+    //);
 
-    var sp_old: usize = @as(usize, sp_low_old) | (@as(usize, sp_high_old) << 8);
+    asm volatile (
+        \\ in r0, 0x7D
+        \\ sts (__sp), r0
+        \\ in r0, 0x7E
+        \\ sts (__sp + 1), r0
+        ::: "r0");
 
     const scheduler = @import("../scheduino/scheduler.zig");
 
-    var new_sp = @call(.{ .modifier = .never_inline }, scheduler.switchProcess, .{sp_old});
+    asm volatile ("nop" ::: "memory");
 
-    var sp_low: u8 = @intCast(u8, new_sp & 0xff);
-    var sp_high: u8 = @intCast(u8, (new_sp >> 8) & 0xff);
+    @call(.{ .modifier = .never_inline }, scheduler.switchProcess, .{});
+
+    asm volatile ("nop" ::: "memory");
+
+    asm volatile (
+        \\ lds r0, (__sp)
+        \\ out 0x7D, r0
+        \\ lds r0, (__sp + 1)
+        \\ out 0x7E, r0
+        ::: "r0");
+
+    //var sp_low: u8 = @intCast(u8, scheduler.__sp & 0xff);
+    //var sp_high: u8 = @intCast(u8, (scheduler.__sp >> 8) & 0xff);
 
     //asm volatile (
     //    \\ out 0x5E, r2
@@ -567,8 +622,52 @@ export fn _tim1_compb() callconv(.Interrupt) void {
     //    : "r1"
     //);
 
-    @intToPtr(*volatile u8, 0x5e).* = sp_high;
-    @intToPtr(*volatile u8, 0x5d).* = sp_low;
+    //@intToPtr(*volatile u8, 0x5e).* = sp_high;
+    //@intToPtr(*volatile u8, 0x5d).* = sp_low;
+
+    asm volatile (
+        \\ pop r0
+        \\ out 0x7F, r0
+    );
+
+    asm volatile (
+        \\ pop r31
+        \\ pop r30
+        \\ pop r29
+        \\ pop r28
+        \\ pop r27
+        \\ pop r26
+        \\ pop r25
+        \\ pop r24
+        \\ pop r23
+        \\ pop r22
+        \\ pop r21
+        \\ pop r20
+        \\ pop r19
+        \\ pop r18
+        \\ pop r17
+        \\ pop r16
+        \\ pop r15
+        \\ pop r14
+        \\ pop r13
+        \\ pop r12
+        \\ pop r11
+        \\ pop r10
+        \\ pop r9
+        \\ pop r8
+        \\ pop r7
+        \\ pop r6
+        \\ pop r5
+        \\ pop r4
+        \\ pop r3
+        \\ pop r2
+        \\ pop r1
+        \\ pop r0
+    );
+
+    asm volatile ("reti");
+
+    unreachable;
 
     //SREG.write(oldSREG);
     //asm volatile ("nop" ::: "memory");

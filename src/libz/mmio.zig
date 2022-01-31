@@ -13,4 +13,3 @@ pub fn MMIO(comptime addr: usize, comptime IntType: type, comptime ReprType: typ
         }
     };
 }
-

@@ -15,7 +15,7 @@ pub export fn _start() callconv(.Naked) noreturn {
     Libz.Interrupts.__ISR_LOADED = 0x69;
 
     @call(.{ .modifier = .never_inline }, @import("start.zig").bootstrap, .{});
-    
+
     while (true) {}
 }
 

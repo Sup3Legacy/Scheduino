@@ -61,7 +61,7 @@ pub fn init() void {
     GPIO.DIGITAL_MODE(DIN_pin, .OUTPUT) catch {};
     GPIO.DIGITAL_MODE(CLOCK_pin, .OUTPUT) catch {};
     GPIO.DIGITAL_MODE(LOAD_pin, .OUTPUT) catch {};
-    
+
     fillRegister(@enumToInt(Instr.Shutdown), 0x01);
     fillRegister(@enumToInt(Instr.ScanLimit), 0x07);
     fillRegister(@enumToInt(Instr.DecodeMode), 0x00);
