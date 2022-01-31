@@ -64,14 +64,14 @@ pub fn DIGITAL_MODE(pin_id: u8, mode: PORT_MODE) GPIO_ERROR!void {
         0...7 => {
             switch (mode) {
                 .OUTPUT => {
-                    DDRD.write(DDRD.read() | itb(pin_id));
+                    DDRD.write(DDRD.read() | (@as(u8, 1) << @intCast(u3, pin_id)));
                 },
                 .INPUT_PULLUP => {
-                    DDRD.write(DDRD.read() | itb(pin_id));
-                    PORTD.write(PORTD.read() | itb(pin_id));
+                    DDRD.write(DDRD.read() | (@as(u8, 1) << @intCast(u3, pin_id)));
+                    PORTD.write(PORTD.read() | (@as(u8, 1) << @intCast(u3, pin_id)));
                 },
                 .INPUT => {
-                    DDRD.write(DDRD.read() & ~itb(pin_id));
+                    DDRD.write(DDRD.read() & ~(@as(u8, 1) << @intCast(u3, pin_id)));
                 },
             }
         },

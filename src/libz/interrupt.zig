@@ -54,7 +54,7 @@ pub fn toggleInterruptNesting(state: bool) void {
 }
 
 /// 
-var is_ticking: [28]bool = [_]bool {false} ** 28;
+var is_ticking: [28]bool = [_]bool{false} ** 28;
 
 const State = enum {
     LOW,
@@ -64,9 +64,15 @@ const State = enum {
 
 pub fn stateOfInt(i: isize) State {
     switch (i) {
-        0 => {return .LOW;},
-        1 => {return .HIGH;},
-        else => {return .ANY;},
+        0 => {
+            return .LOW;
+        },
+        1 => {
+            return .HIGH;
+        },
+        else => {
+            return .ANY;
+        },
     }
 }
 
@@ -152,7 +158,6 @@ fn handlePinInterrupt(pin_event: PinInterrupt) void {
             togglePinInterrupt(i, do_interrupt[i]);
         },
     }
-    
 }
 
 const PinInterruptType = enum {
@@ -242,7 +247,6 @@ pub fn togglePinInterrupt(pin_id: u8, enabled: bool) void {
         0...7 => {
             if (enabled) {
                 PCMSK2.write(PCMSK2.read() | GPIO.itb(pin_id));
-                
             } else {
                 PCMSK2.write(PCMSK2.read() & ~GPIO.itb(pin_id));
             }
@@ -516,7 +520,7 @@ export fn _tim1_compb() callconv(.Interrupt) void {
     //const SREG = Libz.MmIO.MMIO(0x5F, u8, u8);
     //var oldSREG: u8 = SREG.read();
 
-    //sei();
+    sei();
 
     //Libz.Serial.write_ch('x');
     //_ = @import("../main.zig").step();
@@ -526,22 +530,49 @@ export fn _tim1_compb() callconv(.Interrupt) void {
     //Libz.Serial.write_usize(@intCast(u8, v));
     //Libz.Serial.write("\n\r");
 
-    if (is_ticking[12] and !INTERRUPT_NESTING) {
-        // Already ticking. Returning
-    } else {
-        is_ticking[12] = true;
-        sei();
-        @call(.{ .modifier = .never_inline }, @intToPtr(fn () void, __ISR[13]), .{});
-        // Disable interrupts for a moment in order to avoid interrupt nesting during the ISR postlog
-        cli();
-        is_ticking[12] = false;
-    }
+    var sp_low_old: u8 = asm volatile (
+        \\ in r1, 0x7D
+        : [ret] "={r1}" (-> u8),
+        :
+        : "r1"
+    );
+
+    var sp_high_old: u8 = asm volatile (
+        \\ in r2, 0x7E
+        : [ret] "={r2}" (-> u8),
+        :
+        : "r2"
+    );
+
+    var sp_old: usize = @as(usize, sp_low_old) | (@as(usize, sp_high_old) << 8);
+
+    const scheduler = @import("../scheduino/scheduler.zig");
+
+    var new_sp = @call(.{ .modifier = .never_inline }, scheduler.switchProcess, .{sp_old});
+
+    var sp_low: u8 = @intCast(u8, new_sp & 0xff);
+    var sp_high: u8 = @intCast(u8, (new_sp >> 8) & 0xff);
+
+    //asm volatile (
+    //    \\ out 0x5E, r2
+    //    :
+    //    : [sp_high] "{r2}" (sp_high),
+    //    : "r2"
+    //);
+
+    //asm volatile (
+    //    \\ out 0x5D, r0
+    //    :
+    //    : [sp_low] "{r1}" (sp_low),
+    //    : "r1"
+    //);
+
+    @intToPtr(*volatile u8, 0x5e).* = sp_high;
+    @intToPtr(*volatile u8, 0x5d).* = sp_low;
 
     //SREG.write(oldSREG);
     //asm volatile ("nop" ::: "memory");
     //pop();
-
-    //asm volatile ("reti");
 }
 // 14 0x001A TIMER1 OVF Timer/Counter1 Overflow
 export fn _tim1_ovf() callconv(.Naked) void {

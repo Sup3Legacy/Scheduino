@@ -1,6 +1,7 @@
 const std = @import("std");
 const process = @import("process.zig");
-const RAM_START = 0x800100 + 0x00100; // Account for static data
+const buffer = @import("buffer.zig");
+const RAM_START = 0x00100; // Account for static data
 const RAM_SIZE = 2000 - 0x00100; // Less than 2048
 
 pub const StackSize = enum(u8) {
@@ -39,70 +40,16 @@ pub const BufferDef = struct {
     size: BufferSize,
 };
 
-const Buffer = struct {
-    start: usize,
-    size: usize,
-    used: usize,
-    lock: Lock,
-};
-
-pub const Lock = struct {
-    locked: bool,
-    pid: ?u8,
-
-    pub fn unlock(this: *@This()) void {
-        _ = this;
-    }
-
-    pub fn lock(this: *@This()) void {
-        _ = this;
-    }
-
-    pub fn new() @This() {
-        return @This(){
-            .locked = false,
-            .id = null,
-        };
-    }
-};
-
 fn test_func() void {
     var i: u8 = 0;
     i += 1;
 }
 
-pub var MemState = blk: {
-    const ProcDef = process.ProcDef;
-    const procs = [_]process.ProcDef{ProcDef{
-        .func = test_func,
-        .stack_size = .Small,
-    }};
-    const bufs = [_]BufferDef{BufferDef{
-        .ty = u8,
-        .size = .Small,
-    }};
-    comptime var alloc = allocate(
-        procs[0..],
-        bufs[0..],
-    );
-    break :blk alloc;
-};
-
-pub fn resetBuffers() void {
-    inline for (MemState.buffers) |*b| {
-        var ptr: usize = b.start;
-        var end: usize = b.start + b.size;
-        while (ptr < end) : (ptr += 1) {
-            @intToPtr(*u8, ptr).* = 0;
-        }
-    }
-}
-
-fn allocate(comptime proc: []const process.ProcDef, comptime buf: []const BufferDef) struct { processes: [proc.len]process.Process, buffers: [buf.len]Buffer } {
+pub fn allocate(comptime proc: []const process.ProcDef, comptime buf: []const BufferDef) struct { processes: [proc.len]process.Process, buffers: [buf.len]buffer.Buffer } {
     comptime var used: usize = 0;
 
     comptime var processes = [_]process.Process{undefined} ** proc.len;
-    comptime var buffers = [_]Buffer{undefined} ** buf.len;
+    comptime var buffers = [_]buffer.Buffer{undefined} ** buf.len;
 
     comptime var i: usize = 0;
 
@@ -112,7 +59,13 @@ fn allocate(comptime proc: []const process.ProcDef, comptime buf: []const Buffer
             @compileLog("Cannot allocate memory to process stack {}", .{i});
             @compileError("Exiting.");
         }
-        processes[i] = process.Process{ .pid = @intCast(u8, i), .state = .New, .stack_layout = StackLayout{ .start = used, .size = proc[i].stack_size } };
+        processes[i] = process.Process{
+            .pid = @intCast(u8, i),
+            .func = proc[i].func,
+            .state = .New,
+            .stack_pointer = used + RAM_START + size - 1,
+            .stack_layout = StackLayout{ .start = used + RAM_START + size - 1, .size = proc[i].stack_size },
+        };
 
         used += size;
     }
@@ -124,11 +77,11 @@ fn allocate(comptime proc: []const process.ProcDef, comptime buf: []const Buffer
             @compileLog("Cannot allocate memory to buffer {}", .{i});
             @compileError("Exiting.");
         }
-        buffers[i] = Buffer{
-            .start = used,
+        buffers[i] = buffer.Buffer{
+            .start = used + RAM_START,
             .size = size,
             .used = @as(usize, 0),
-            .lock = Lock{
+            .lock = buffer.Lock{
                 .locked = false,
                 .pid = null,
             },

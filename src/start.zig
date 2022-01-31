@@ -9,6 +9,11 @@ const gpio = Libz.GpIO;
 const timer = Libz.Timer;
 const Max7219 = Libz.Max7219;
 
+const memory = @import("scheduino/memory.zig");
+const scheduler = @import("scheduino/scheduler.zig");
+const process = @import("scheduino/process.zig");
+const buffer = @import("scheduino/buffer.zig");
+
 var str = "Hello, world!\n\r";
 
 pub fn initSOC() void {
@@ -21,8 +26,9 @@ pub fn initSOC() void {
 }
 
 pub fn bootstrap() noreturn {
-    _ = @import("scheduino/memory.zig").MemState;
-    @import("scheduino/memory.zig").resetBuffers();
+    _ = .MemState;
+    _ = @import("scheduino/buffer.zig").Buffer.read;
+    scheduler.resetBuffers();
     // Init the SoC
     initSOC();
     utilities.delay(100_000);
@@ -48,14 +54,36 @@ pub fn bootstrap() noreturn {
 
     // Enable global interrupts
     interrupt.sei();
-    
+
     // Attach the step function to the timer1 interrupt
     // Initializes the timer1 interrupt (B overflow)
-    timer.initTimer1(10_000);
+    
+
+    main();
+}
+
+fn main() noreturn {
+    var mainThread: process.Process = scheduler.MemState.processes[0];
+    var address_low = @intToPtr(*volatile u8, mainThread.stack_pointer);
+    var address_high = @intToPtr(*volatile u8, mainThread.stack_pointer - 1);
+    address_low.* = @intCast(u8, @ptrToInt(mainThread.func) & 0xff);
+    address_high.* = @intCast(u8, @ptrToInt(mainThread.func) >> 8);
+    mainThread.stack_pointer -= 2 + 9;
+
+    timer.initTimer1(1_000_000);
+
+    Libz.GpIO.DIGITAL_MODE(2, .OUTPUT) catch {};
+    Libz.GpIO.DIGITAL_WRITE(2, .HIGH) catch {};
 
     while (true) {
-        Libz.Utilities.no_op();
-        
+        utilities.delay(100_000);
+
+        Libz.GpIO.DIGITAL_WRITE(2, .HIGH) catch {};
+
+        utilities.delay(100_000);
+
+        Libz.GpIO.DIGITAL_WRITE(2, .LOW) catch {};
+
         // Housekeeping stuff of needed
     }
 }
