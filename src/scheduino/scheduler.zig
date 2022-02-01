@@ -6,21 +6,53 @@ pub export var __sp: usize = undefined;
 
 pub var currentId = @as(u8, 0);
 pub var hasJumped = false;
+pub var ticks: u32 = 0;
 
 pub var l = false;
 
 pub fn switchProcess() void {
+    ticks += 1;
     Libz.GpIO.DIGITAL_MODE(4, .OUTPUT) catch {};
     Libz.GpIO.DIGITAL_WRITE(4, if (l) .LOW else .HIGH) catch {};
 
-    var new_pid: u8 = 0;
-    if (hasJumped) {
-        MemState.processes[currentId].stack_pointer = __sp;
-        new_pid = if (currentId + 1 == MemState.processes.len) 0 else (currentId + 1);
-    }
-    currentId = new_pid;
+    currentId = newPid();
     l = if (l) false else true;
-    __sp = MemState.processes[new_pid].stack_pointer;
+    __sp = MemState.processes[currentId].stack_pointer;
+}
+
+fn newPid() u8 {
+    if (!hasJumped) {
+        return currentId;
+    }
+    var current_pid: u8 = currentId;
+    var _i: u8 = 0;
+    while (_i <= MemState.processes.len) : (_i += 1) {
+        var i: u8 = if (current_pid + _i >= MemState.processes.len) ((current_pid + _i) - @intCast(u8, MemState.processes.len)) else (current_pid + _i);
+        var proc = &MemState.processes[i];
+        switch (proc.state) {
+            .New => {},
+            .Running => {
+                return i;
+            },
+            .Waiting => {
+                if (proc.wait_offset <= 1) {
+                    proc.wait_offset = 0;
+                    proc.state = .Running;
+                    return i;
+                } else {
+                    proc.wait_offset -= 1;
+                }
+            },
+            .Dead => {},
+        }
+    }
+    while (true) {
+        asm volatile ("nop");
+    }
+}
+
+pub fn handProcessOver() void {
+    @call(.{}, Libz.Interrupts._tim1_compb, .{});
 }
 
 pub var MemState = blk: {

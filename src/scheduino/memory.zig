@@ -63,6 +63,7 @@ pub fn allocate(comptime proc: []const process.ProcDef, comptime buf: []const Bu
             .pid = @intCast(u8, i),
             .func = proc[i].func,
             .state = .New,
+            .wait_offset = 0,
             .stack_pointer = used + RAM_START + size - 1,
             .stack_layout = StackLayout{ .start = used + RAM_START + size - 1, .size = proc[i].stack_size },
         };

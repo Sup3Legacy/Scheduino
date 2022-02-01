@@ -7,6 +7,7 @@ pub const Process = struct {
     pid: u8,
     func: fn () void,
     state: ProcState,
+    wait_offset: usize,
     stack_pointer: usize,
     stack_layout: memory.StackLayout,
 };
@@ -21,8 +22,18 @@ pub const ProcState = enum(u8) {
     Running,
     Waiting,
     Dead,
-    Empty,
 };
+
+pub fn handOver() void {
+    scheduler.handProcessOver();
+}
+
+pub fn sleepTick(tick: usize) void {
+    var self_proc = &scheduler.MemState.processes[scheduler.currentId];
+    self_proc.state = .Waiting;
+    self_proc.wait_offset = tick;
+    handOver();
+}
 
 pub export var k = false;
 
@@ -35,6 +46,7 @@ pub fn mainProcess() void {
 
     var counter: u8 = 0;
 
+    // Initialize the stack of all other processes
     for (scheduler.MemState.processes) |*proc| {
         if (counter != 0) {
             var address_low = @intToPtr(*volatile u8, proc.stack_pointer - 1);
@@ -47,12 +59,15 @@ pub fn mainProcess() void {
             var address_sreg = @intToPtr(*volatile u8, proc.stack_pointer - (2 + 33));
             address_sreg.* = oldSREG;
 
+            proc.state = .Running;
+
             proc.stack_pointer -= 3 + 33;
         }
         counter += 1;
     }
 
     while (true) {
+        sleepTick(10);
         Libz.Utilities.delay(50_000);
         Libz.GpIO.DIGITAL_WRITE(3, if (k) .LOW else .HIGH) catch {};
 
@@ -72,3 +87,4 @@ pub fn secondProcess() void {
         st = if (st) false else true;
     }
 }
+

@@ -74,6 +74,7 @@ fn main() noreturn {
     address_sreg.* = oldSREG;
 
     mainThread.stack_pointer -= 3 + 33;
+    mainThread.state = .Running;
 
     timer.initTimer1(1_000_000);
 

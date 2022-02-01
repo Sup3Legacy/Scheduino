@@ -513,7 +513,7 @@ export fn _tim1_compa() callconv(.Naked) void {
     asm volatile ("reti");
 }
 // 13 0x0018 TIMER1 COMPB Timer/Coutner1 Compare Match B
-export fn _tim1_compb() callconv(.Naked) noreturn {
+pub export fn _tim1_compb() callconv(.C) noreturn {
     //asm volatile ("cli" ::: "memory");
     //push();
     //asm volatile ("nop" ::: "memory");
