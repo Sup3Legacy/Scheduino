@@ -65,8 +65,8 @@ pub fn mainProcess() void {
         counter += 1;
     }
 
+    sleepTick(10);
     while (true) {
-        //sleepTick(10);
         Libz.Utilities.delay(50_000);
         Libz.GpIO.DIGITAL_WRITE(3, if (k) .LOW else .HIGH) catch {};
 

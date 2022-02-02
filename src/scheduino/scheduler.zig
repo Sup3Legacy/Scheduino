@@ -13,6 +13,9 @@ pub var l = false;
 pub fn switchProcess() void {
     ticks += 1;
     Libz.GpIO.DIGITAL_MODE(4, .OUTPUT) catch {};
+    if (hasJumped) {
+        MemState.processes[currentId].stack_pointer = __sp;
+    }
 
     newPid();
 
@@ -38,8 +41,7 @@ fn newPid() void {
                 return;
             },
             .Waiting => {
-                if (proc.wait_offset <= 1) {
-                    proc.wait_offset = 0;
+                if (proc.wait_offset == 0) {
                     proc.state = .Running;
                     currentId = i;
                     return;
