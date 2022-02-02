@@ -1,8 +1,8 @@
 const std = @import("std");
 const process = @import("process.zig");
 const buffer = @import("buffer.zig");
-const RAM_START = 0x00200; // Account for static data
-const RAM_SIZE = 2000 - 0x00200; // Less than 2048
+const RAM_START = 0x00300; // Account for static data
+const RAM_SIZE = 2000 - 0x00300; // Less than 2048
 
 pub const StackSize = enum(u8) {
     XSmall,

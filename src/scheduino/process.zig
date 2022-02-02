@@ -32,15 +32,13 @@ pub fn sleepTick(tick: usize) void {
     var self_proc = &scheduler.MemState.processes[scheduler.currentId];
     self_proc.state = .Waiting;
     self_proc.wait_offset = tick;
-    handOver();
+    //handOver();
 }
 
 pub export var k = false;
 
 pub fn mainProcess() void {
     scheduler.hasJumped = true;
-
-    asm volatile ("sei");
 
     Libz.GpIO.DIGITAL_MODE(3, .OUTPUT) catch {};
 
@@ -56,7 +54,8 @@ pub fn mainProcess() void {
 
             const SREG = Libz.MmIO.MMIO(0x5F, u8, u8);
             var oldSREG: u8 = SREG.read();
-            var address_sreg = @intToPtr(*volatile u8, proc.stack_pointer - (2 + 33));
+            var address_sreg =
+                @intToPtr(*volatile u8, proc.stack_pointer - (2 + 33));
             address_sreg.* = oldSREG;
 
             proc.state = .Running;
@@ -67,7 +66,7 @@ pub fn mainProcess() void {
     }
 
     while (true) {
-        sleepTick(10);
+        //sleepTick(10);
         Libz.Utilities.delay(50_000);
         Libz.GpIO.DIGITAL_WRITE(3, if (k) .LOW else .HIGH) catch {};
 
@@ -88,3 +87,4 @@ pub fn secondProcess() void {
     }
 }
 
+pub fn testFunction() void {}

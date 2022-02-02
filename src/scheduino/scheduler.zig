@@ -2,7 +2,7 @@ const Memory = @import("memory.zig");
 const process = @import("process.zig");
 const Libz = @import("../libz/libz.zig");
 
-pub export var __sp: usize = undefined;
+pub export var __sp: usize = 0;
 
 pub var currentId = @as(u8, 0);
 pub var hasJumped = false;
@@ -13,32 +13,36 @@ pub var l = false;
 pub fn switchProcess() void {
     ticks += 1;
     Libz.GpIO.DIGITAL_MODE(4, .OUTPUT) catch {};
-    Libz.GpIO.DIGITAL_WRITE(4, if (l) .LOW else .HIGH) catch {};
 
-    currentId = newPid();
+    newPid();
+
+    Libz.GpIO.DIGITAL_WRITE(4, if (l) .LOW else .HIGH) catch {};
     l = if (l) false else true;
     __sp = MemState.processes[currentId].stack_pointer;
 }
 
-fn newPid() u8 {
+fn newPid() void {
     if (!hasJumped) {
-        return currentId;
+        return;
     }
     var current_pid: u8 = currentId;
-    var _i: u8 = 0;
+    var _i: u8 = 1;
     while (_i <= MemState.processes.len) : (_i += 1) {
-        var i: u8 = if (current_pid + _i >= MemState.processes.len) ((current_pid + _i) - @intCast(u8, MemState.processes.len)) else (current_pid + _i);
+        var __i = (current_pid + _i);
+        var i: u8 = if (__i >= MemState.processes.len) (__i - @intCast(u8, MemState.processes.len)) else __i;
         var proc = &MemState.processes[i];
         switch (proc.state) {
             .New => {},
             .Running => {
-                return i;
+                currentId = i;
+                return;
             },
             .Waiting => {
                 if (proc.wait_offset <= 1) {
                     proc.wait_offset = 0;
                     proc.state = .Running;
-                    return i;
+                    currentId = i;
+                    return;
                 } else {
                     proc.wait_offset -= 1;
                 }
@@ -80,7 +84,7 @@ pub fn resetBuffers() void {
         var ptr: usize = b.start;
         var end: usize = b.start + b.size;
         while (ptr < end) : (ptr += 1) {
-            @intToPtr(*u8, ptr).* = 0;
+            @intToPtr(*volatile u8, ptr).* = 0;
         }
     }
 }

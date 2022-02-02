@@ -555,8 +555,6 @@ pub export fn _tim1_compb() callconv(.C) noreturn {
         \\ push r31
     );
 
-    sei();
-
     //Libz.Serial.write_ch('x');
     //_ = @import("../main.zig").step();
     //var v = @intCast(u16, Utilities.read_SP());
@@ -664,6 +662,8 @@ pub export fn _tim1_compb() callconv(.C) noreturn {
         \\ pop r1
         \\ pop r0
     );
+
+    sei();
 
     asm volatile ("reti");
 
