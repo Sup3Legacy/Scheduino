@@ -12,8 +12,13 @@ pub const StackSize = enum(u8) {
     XLarge,
 
     pub fn to_usize(this: *const @This()) usize {
-        _ = this;
-        return 256;
+        switch (this.*) {
+            .XSmall => return 32,
+            .Small => return 64,
+            .Normal => return 128,
+            .Large => return 256,
+            .XLarge => return 512,
+        }
     }
 };
 
@@ -30,8 +35,13 @@ pub const BufferSize = enum(u8) {
     XLarge,
 
     pub fn to_usize(this: *const @This()) usize {
-        _ = this;
-        return 128;
+        switch (this.*) {
+            .XSmall => return 32,
+            .Small => return 64,
+            .Normal => return 128,
+            .Large => return 256,
+            .XLarge => return 512,
+        }
     }
 };
 
@@ -39,11 +49,6 @@ pub const BufferDef = struct {
     ty: type,
     size: BufferSize,
 };
-
-fn test_func() void {
-    var i: u8 = 0;
-    i += 1;
-}
 
 pub fn allocate(comptime proc: []const process.ProcDef, comptime buf: []const BufferDef) struct { processes: [proc.len]process.Process, buffers: [buf.len]buffer.Buffer } {
     comptime var used: usize = 0;
