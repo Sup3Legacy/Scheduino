@@ -2,14 +2,23 @@ const Memory = @import("memory.zig");
 const process = @import("process.zig");
 const Libz = @import("../libz/libz.zig");
 
+// Global variable used to handle the stack pointer
+// upon context switch
 pub export var __sp: usize = undefined;
 
+// Id of the currently running process
 pub var currentId = @as(u8, 0);
+
+// Whether the system has already jumped into
+// its operational mode
 pub var hasJumped = false;
+
+// Number of elapsed ticks since start
 pub var ticks: u32 = 0;
 
 pub var l = false;
 
+// Called from the timer interrupt
 pub fn switchProcess() void {
     ticks += 1;
     Libz.GpIO.DIGITAL_MODE(4, .OUTPUT) catch {};
@@ -20,6 +29,8 @@ pub fn switchProcess() void {
     __sp = MemState.processes[currentId].stack_pointer;
 }
 
+// Determines the next process to be run based using a simple round-robin.
+// It supports idle processes.
 fn newPid() u8 {
     if (!hasJumped) {
         return currentId;
@@ -51,10 +62,14 @@ fn newPid() u8 {
     }
 }
 
+// Manually trigger the context switch.
+// FIX: Setup return address hack to make this work.
 pub fn handProcessOver() void {
     @call(.{}, Libz.Interrupts._tim1_compb, .{});
 }
 
+// The global state structure of the OS. Holds all information
+// about the processes and buffers
 pub var MemState = blk: {
     const ProcDef = process.ProcDef;
     const procs = [_]process.ProcDef{ ProcDef{
@@ -75,6 +90,7 @@ pub var MemState = blk: {
     break :blk alloc;
 };
 
+// Reset all buffers to zero. Midly important.
 pub fn resetBuffers() void {
     inline for (MemState.buffers) |*b| {
         var ptr: usize = b.start;
@@ -85,19 +101,30 @@ pub fn resetBuffers() void {
     }
 }
 
+// Setup the stack of each process. Highly important.
+// HACK: Maybe make these things more simple
 pub fn setProcesses() void {
     inline for (MemState.processes) |*p| {
+        // The first time a process runs, it must be manually setup
+        // by injecting its PC and the right place on the stack
+        // so that the `reti` instruction fetches this address
+        // and jumps into the process's main code.
         var address_low = @intToPtr(*volatile u8, p.stack_pointer - 1);
         var address_high = @intToPtr(*volatile u8, p.stack_pointer - 2);
         address_low.* = @intCast(u8, @ptrToInt(p.func) & 0xff);
         address_high.* = @intCast(u8, @ptrToInt(p.func) >> 8);
 
+        // Write a neutral value to the process's SREG (TODO)
         const SREG = Libz.MmIO.MMIO(0x5F, u8, u8);
         var oldSREG: u8 = SREG.read();
         var address_sreg = @intToPtr(*volatile u8, p.stack_pointer - (2 + 33));
         address_sreg.* = oldSREG;
 
+        // Change the process's SP in the OS's memory to account for
+        // the extra stack taken by the ISR.
         p.stack_pointer -= 3 + 33;
+
+        // Set the process's state to `Running`
         p.state = .Running;
     }
 }

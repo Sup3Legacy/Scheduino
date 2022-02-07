@@ -1,3 +1,9 @@
+// A compile-time defined and allocated buffer,
+// to be used either as single-threaded "bulk" memory
+// by a process or as a pipe
+//
+// A buffer is always guarded by a lock and access to
+// its content must respect this to avoid any data-race
 pub const Buffer = struct {
     start: usize,
     size: usize,
@@ -21,15 +27,19 @@ pub const Buffer = struct {
     }
 };
 
+// Basic implementation of locks, used to protect shared buffers
+// from data-races. WIP
 pub const Lock = struct {
     locked: bool,
     pid: ?u8,
 
-    pub fn unlock(this: *@This()) void {
+    // TODO: Implement this
+    pub fn acquire(this: *@This()) void {
         _ = this;
     }
 
-    pub fn lock(this: *@This()) void {
+    // TODO: Implement this
+    pub fn release(this: *@This()) void {
         _ = this;
     }
 

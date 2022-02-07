@@ -520,6 +520,7 @@ pub export fn _tim1_compb() callconv(.C) noreturn {
     //const SREG = Libz.MmIO.MMIO(0x5F, u8, u8);
     //var oldSREG: u8 = SREG.read();
 
+    // PERF: Maybe look into optimizing this push-pop tower of Doom
     asm volatile (
         \\ push r0
         \\ push r1

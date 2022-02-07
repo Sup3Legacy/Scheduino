@@ -46,7 +46,7 @@ fn updateISR() void {
     //@import("interrupt.zig").initISR();
 }
 
-/// Load the .Data segment into RAM. Highly important!
+/// Load the .data segment into RAM. Highly important!
 fn copyDataToRAM() void {
     asm volatile (
         \\

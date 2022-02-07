@@ -4,6 +4,7 @@ const buffer = @import("buffer.zig");
 const RAM_START = 0x00200; // Account for static data
 const RAM_SIZE = 2000 - 0x00200; // Less than 2048
 
+// Size of stacks
 pub const StackSize = enum(u8) {
     XSmall,
     Small,
@@ -27,6 +28,7 @@ pub const StackLayout = struct {
     size: StackSize,
 };
 
+// Size of buffers
 pub const BufferSize = enum(u8) {
     XSmall,
     Small,
@@ -34,6 +36,7 @@ pub const BufferSize = enum(u8) {
     Large,
     XLarge,
 
+    // INFO: Might want to adapt this
     pub fn to_usize(this: *const @This()) usize {
         switch (this.*) {
             .XSmall => return 32,
@@ -50,6 +53,8 @@ pub const BufferDef = struct {
     size: BufferSize,
 };
 
+// Compile-time static stack-and-buffer allocation.
+// Comptime-crashes in the case of a OOM exception.
 pub fn allocate(comptime proc: []const process.ProcDef, comptime buf: []const BufferDef) struct { processes: [proc.len]process.Process, buffers: [buf.len]buffer.Buffer } {
     comptime var used: usize = 0;
 
