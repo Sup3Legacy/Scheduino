@@ -84,3 +84,20 @@ pub fn resetBuffers() void {
         }
     }
 }
+
+pub fn setProcesses() void {
+    inline for (MemState.processes) |*p| {
+        var address_low = @intToPtr(*volatile u8, p.stack_pointer - 1);
+        var address_high = @intToPtr(*volatile u8, p.stack_pointer - 2);
+        address_low.* = @intCast(u8, @ptrToInt(p.func) & 0xff);
+        address_high.* = @intCast(u8, @ptrToInt(p.func) >> 8);
+
+        const SREG = Libz.MmIO.MMIO(0x5F, u8, u8);
+        var oldSREG: u8 = SREG.read();
+        var address_sreg = @intToPtr(*volatile u8, p.stack_pointer - (2 + 33));
+        address_sreg.* = oldSREG;
+
+        p.stack_pointer -= 3 + 33;
+        p.state = .Running;
+    }
+}

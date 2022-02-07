@@ -44,28 +44,6 @@ pub fn mainProcess() void {
 
     Libz.GpIO.DIGITAL_MODE(3, .OUTPUT) catch {};
 
-    var counter: u8 = 0;
-
-    // Initialize the stack of all other processes
-    for (scheduler.MemState.processes) |*proc| {
-        if (counter != 0) {
-            var address_low = @intToPtr(*volatile u8, proc.stack_pointer - 1);
-            var address_high = @intToPtr(*volatile u8, proc.stack_pointer - 2);
-            address_low.* = @intCast(u8, @ptrToInt(proc.func) & 0xff);
-            address_high.* = @intCast(u8, @ptrToInt(proc.func) >> 8);
-
-            const SREG = Libz.MmIO.MMIO(0x5F, u8, u8);
-            var oldSREG: u8 = SREG.read();
-            var address_sreg = @intToPtr(*volatile u8, proc.stack_pointer - (2 + 33));
-            address_sreg.* = oldSREG;
-
-            proc.state = .Running;
-
-            proc.stack_pointer -= 3 + 33;
-        }
-        counter += 1;
-    }
-
     while (true) {
         sleepTick(10);
         Libz.Utilities.delay(50_000);
@@ -87,4 +65,3 @@ pub fn secondProcess() void {
         st = if (st) false else true;
     }
 }
-

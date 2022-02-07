@@ -1,4 +1,4 @@
-/// Second-stage bootstraping functions.
+/// Second-stage bootstraping 
 const std = @import("std");
 const Libz = @import("./libz/libz.zig");
 const mmio = Libz.MmIO;
@@ -58,24 +58,14 @@ pub fn bootstrap() noreturn {
     // Attach the step function to the timer1 interrupt
     // Initializes the timer1 interrupt (B overflow)
 
-    main();
+    // Re-initialize all buffers
+    scheduler.resetBuffers();
+    // Setup each process' stack
+    scheduler.setProcesses();
+    jumpToUserspace();
 }
 
-fn main() noreturn {
-    var mainThread: *process.Process = &scheduler.MemState.processes[0];
-    var address_low = @intToPtr(*volatile u8, mainThread.stack_pointer - 1);
-    var address_high = @intToPtr(*volatile u8, mainThread.stack_pointer - 2);
-    address_low.* = @intCast(u8, @ptrToInt(mainThread.func) & 0xff);
-    address_high.* = @intCast(u8, @ptrToInt(mainThread.func) >> 8);
-
-    const SREG = Libz.MmIO.MMIO(0x5F, u8, u8);
-    var oldSREG: u8 = SREG.read();
-    var address_sreg = @intToPtr(*volatile u8, mainThread.stack_pointer - (2 + 33));
-    address_sreg.* = oldSREG;
-
-    mainThread.stack_pointer -= 3 + 33;
-    mainThread.state = .Running;
-
+fn jumpToUserspace() noreturn {
     timer.initTimer1(1_000_000);
 
     Libz.GpIO.DIGITAL_MODE(2, .OUTPUT) catch {};
