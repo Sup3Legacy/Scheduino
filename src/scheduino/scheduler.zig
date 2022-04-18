@@ -20,10 +20,8 @@ pub var l = false;
 
 // Called from the timer interrupt
 pub fn switchProcess() void {
-    ticks += 1;
-    Libz.GpIO.DIGITAL_MODE(4, .OUTPUT) catch {};
-    Libz.GpIO.DIGITAL_WRITE(4, if (l) .LOW else .HIGH) catch {};
-
+    // This operation is overflowing as we wouldn't want to crash at overflow
+    ticks +%= 1;
     currentId = newPid();
     l = if (l) false else true;
     __sp = MemState.processes[currentId].stack_pointer;
@@ -57,13 +55,17 @@ fn newPid() u8 {
             .Dead => {},
         }
     }
+
+    // Not runnable process has been found.
+    // Wait for the next rescheduling.
     while (true) {
         asm volatile ("nop");
     }
 }
 
 // Manually trigger the context switch.
-// FIX: Setup return address hack to make this work.
+// FIX: Does not work as it pushes a wrong address onto the stack
+// TODO: Setup return address hack to make this work.
 pub fn handProcessOver() void {
     @call(.{}, Libz.Interrupts._tim1_compb, .{});
 }
@@ -121,7 +123,7 @@ pub fn setProcesses() void {
         address_sreg.* = oldSREG;
 
         // Change the process's SP in the OS's memory to account for
-        // the extra stack taken by the ISR.
+        // the extra stack taken by the ISR context on stack.
         p.stack_pointer -= 3 + 33;
 
         // Set the process's state to `Running`
