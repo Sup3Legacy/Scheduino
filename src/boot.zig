@@ -8,11 +8,11 @@ extern const __data_start: usize;
 extern const __data_end: usize;
 extern const __data_load_start: usize;
 /// Entry point of the program
-/// It initializes the memory and ISRs and then jumps into the 
+/// It initializes the memory and ISRs and then jumps into the
 // bootstrap main function
 pub export fn _start() callconv(.Naked) noreturn {
-    @call(.{ .modifier = .never_inline }, copyDataToRAM2, .{});
-    @call(.{ .modifier = .never_inline }, clearBSS, .{});
+    @call(.{ .modifier = .never_inline }, copyDataToRAM, .{});
+    @call(.{ .modifier = .never_inline }, clearBSS2, .{});
     //@call(.{.modifier = .never_inline }, updateISR, .{});
 
     // Set ISR magic number
@@ -78,9 +78,6 @@ fn copyDataToRAM() void {
         ::: "r30", "r31", "r28", "r29", "r26", "r27", "r25", "r20");
 }
 
-fn copyDataToRAM2() void {
-    std.mem.copy(u8, @intToPtr([*]u8, __data_load_start)[0..(__data_end - __data_start)], @intToPtr([*]u8, __data_start)[0..(__data_end - __data_start)]);
-}
 /// Clear the .bss segment. Maybe kinda secondary
 fn clearBSS() void {
     asm volatile (
@@ -106,4 +103,8 @@ fn clearBSS() void {
         \\.bss_clear_2:
         \\ pop r25
         ::: "r28", "r29", "r26", "r27");
+}
+
+fn clearBSS2() void {
+    std.mem.set(u8, @intToPtr([*]u8, __bss_start)[0..(__bss_end - __bss_start)], 0);
 }

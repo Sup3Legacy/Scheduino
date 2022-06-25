@@ -79,7 +79,6 @@ pub fn mainProcess() void {
 pub fn secondProcess() void {
     var st: bool = true;
     Libz.GpIO.DIGITAL_MODE(6, .OUTPUT) catch {};
-    Libz.GpIO.DIGITAL_WRITE(6, .HIGH) catch {};
 
     while (true) {
         Libz.Utilities.delay(75_000);

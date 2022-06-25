@@ -1,3 +1,4 @@
+const std = @import("std");
 const Memory = @import("memory.zig");
 const process = @import("process.zig");
 const Libz = @import("../libz/libz.zig");
@@ -95,11 +96,7 @@ pub var MemState = blk: {
 // Reset all buffers to zero. Midly important.
 pub fn resetBuffers() void {
     inline for (MemState.buffers) |*b| {
-        var ptr: usize = b.start;
-        var end: usize = b.start + b.size;
-        while (ptr < end) : (ptr += 1) {
-            @intToPtr(*u8, ptr).* = 0;
-        }
+        std.mem.set(u8, @intToPtr([*]u8, b.start)[0..b.size], 0);
     }
 }
 

@@ -1,4 +1,4 @@
-/// Second-stage bootstraping 
+/// Second-stage bootstraping
 const std = @import("std");
 const Libz = @import("./libz/libz.zig");
 const mmio = Libz.MmIO;
@@ -40,7 +40,7 @@ pub fn bootstrap() noreturn {
     // Enable ticking ot keep track of time
     //timer.enableTimer0ClockInt();
 
-    // Print the address of the reset itnerrupt for debug
+    // Print the address of the reset interrupt for debug
     utilities.delay(100_000);
     Serial.write_usize(@intCast(u8, interrupt.__ISR[0] >> 8));
     utilities.delay(100_000);
