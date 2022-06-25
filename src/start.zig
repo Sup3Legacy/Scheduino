@@ -33,7 +33,7 @@ pub fn bootstrap() noreturn {
     initSOC();
     utilities.delay(100_000);
     // Hello, world!
-    Serial.write(str);
+    Serial.print("{s}", .{str});
 
     // Reset the Lustre state machine
 
@@ -42,15 +42,13 @@ pub fn bootstrap() noreturn {
 
     // Print the address of the reset interrupt for debug
     utilities.delay(100_000);
-    Serial.write_usize(@intCast(u8, interrupt.__ISR[0] >> 8));
-    utilities.delay(100_000);
-    Serial.write_usize(@intCast(u8, interrupt.__ISR[0]));
+    Serial.print("{}\r\n", .{interrupt.__ISR[0]});
 
     // Somehow screen needs a CRLF-type line ending
     utilities.delay(100_000);
-    Serial.write_ch('\r');
+    Serial.writeChar('\r');
     utilities.delay(100_000);
-    Serial.write_ch('\n');
+    Serial.writeChar('\n');
 
     // Enable global interrupts
     interrupt.sei();

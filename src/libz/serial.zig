@@ -1,6 +1,7 @@
 const MMIO = @import("mmio.zig").MMIO;
 const constants = @import("constants.zig");
 const Libz = @import("libz.zig");
+const std = @import("std");
 
 const UDR0 = MMIO(0xc6, u8, packed union {
     RXB: u8,
@@ -65,16 +66,7 @@ pub fn init(comptime baud: comptime_int) void {
     UCSR0B.write(.{ .TXEN0 = 1 });
 }
 
-pub fn write(data: []const u8) void {
-    for (data) |ch| {
-        write_ch(ch);
-    }
-
-    // Wait till we are actually done sending
-    while (UCSR0A.read().TXC0 != 1) {}
-}
-
-pub fn write_ch(ch: u8) void {
+pub fn writeChar(ch: u8) void {
     // Wait till the transmit buffer is empty
     const SREG = Libz.MmIO.MMIO(0x5F, u8, u8);
     var oldSREG: u8 = SREG.read();
@@ -85,93 +77,29 @@ pub fn write_ch(ch: u8) void {
     SREG.write(oldSREG);
 }
 
-fn match_number(n: u4) u8 {
-    switch (n) {
-        0 => {
-            return '0';
-        },
-        1 => {
-            return '1';
-        },
-        2 => {
-            return '2';
-        },
-        3 => {
-            return '3';
-        },
-        4 => {
-            return '4';
-        },
-        5 => {
-            return '5';
-        },
-        6 => {
-            return '6';
-        },
-        7 => {
-            return '7';
-        },
-        8 => {
-            return '8';
-        },
-        9 => {
-            return '9';
-        },
-        10 => {
-            return 'a';
-        },
-        11 => {
-            return 'b';
-        },
-        12 => {
-            return 'c';
-        },
-        13 => {
-            return 'd';
-        },
-        14 => {
-            return 'e';
-        },
-        15 => {
-            return 'f';
-        },
+pub fn write(data: []const u8) void {
+    for (data) |ch| {
+        writeChar(ch);
     }
+
+    // Wait till we are actually done sending
+    while (UCSR0A.read().TXC0 != 1) {}
 }
 
-pub fn write_usize(nb: u8) void {
-    write_ch(match_number(@intCast(u4, nb >> 4)));
-    flush();
-    write_ch(match_number(@intCast(u4, nb)));
+pub fn writeSlice(context: u1, bytes: []const u8) !usize {
+    _ = context;
+    write(bytes);
+    return bytes.len;
 }
 
-pub fn write_u16(nb: u32) void {
-    write_ch(match_number(@intCast(u4, nb >> 12)));
-    flush();
-    write_ch(match_number(@intCast(u4, nb >> 8)));
-    flush();
-    write_ch(match_number(@intCast(u4, nb >> 4)));
-    flush();
-    write_ch(match_number(@intCast(u4, nb)));
-    flush();
-}
+const SerialWriter = std.io.Writer(u1, error{}, writeSlice);
 
-pub fn write_u32(nb: u32) void {
-    write_ch(match_number(@intCast(u4, nb / 28)));
-    flush();
-    write_ch(match_number(@intCast(u4, nb >> 24)));
-    flush();
-    write_ch(match_number(@intCast(u4, nb >> 20)));
-    flush();
-    write_ch(match_number(@intCast(u4, nb >> 16)));
-    flush();
-    write_ch(match_number(@intCast(u4, nb >> 12)));
-    flush();
-    write_ch(match_number(@intCast(u4, nb >> 8)));
-    flush();
-    write_ch(match_number(@intCast(u4, nb >> 4)));
-    flush();
-    write_ch(match_number(@intCast(u4, nb)));
-    flush();
+var SerialWriterInstance = SerialWriter{
+    .context = 1,
+};
+
+pub fn print(comptime fmt: []const u8, args: anytype) void {
+    SerialWriter.print(SerialWriterInstance, fmt, args) catch {};
 }
 
 pub fn flush() void {
